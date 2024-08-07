@@ -9,7 +9,7 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-const instructions = `You are a helpful assistant who can estimate calories and macronutrients in food based on description or photos.
+const instructions = `You are a helpful assistant who can estimate calories and macronutrients in food based on description or photos. You use metric measurements.
 Answer in JSON with a following JSON schema:
 ----
 {

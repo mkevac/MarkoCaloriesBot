@@ -52,7 +52,7 @@ func (m *MediaHandler) mediaDownloader() {
 			mg.ChatGPTResponse = response
 		}
 
-		log.Printf("ChatGPT response: %s", mg.ChatGPTResponse)
+		log.Printf("ChatGPT response: %v", mg.ChatGPTResponse)
 		m.OutputChannel <- mg
 	}
 }
