@@ -54,13 +54,54 @@ func main() {
 	b.Start(ctx)
 }
 
+func FormatChatGPTResponse(response *OpenAIResponse) string {
+	// make a pretty response from OpenAIResponse struct
+
+	// first list all the foods with their calories, protein, fat, and carbs
+	var foods strings.Builder
+	for _, food := range response.Foods {
+		foods.WriteString(fmt.Sprintf("%s (%s):\n", food.Description, food.Portion))
+		foods.WriteString(fmt.Sprintf("Calories: %.2f\n", food.Calories))
+		foods.WriteString(fmt.Sprintf("Protein: %.2f\n", food.Protein))
+		foods.WriteString(fmt.Sprintf("Fat: %.2f\n", food.Fat))
+		foods.WriteString(fmt.Sprintf("Carbs: %.2f\n", food.Carbs))
+		foods.WriteString("\n")
+	}
+
+	// then list the total calories, protein, fat, and carbs
+	total := response.Total
+	var totalString strings.Builder
+	totalString.WriteString("Total:\n")
+	totalString.WriteString(fmt.Sprintf("Calories: %.2f\n", total.Calories))
+	totalString.WriteString(fmt.Sprintf("Protein: %.2f\n", total.Protein))
+	totalString.WriteString(fmt.Sprintf("Fat: %.2f\n", total.Fat))
+	totalString.WriteString(fmt.Sprintf("Carbs: %.2f\n", total.Carbs))
+
+	// combine the two
+	var result strings.Builder
+	result.WriteString(foods.String())
+	result.WriteString(totalString.String())
+
+	return result.String()
+}
+
 func answerMachine(ctx context.Context, b *bot.Bot) {
 	for mg := range mh.OutputChannel {
+
 		log.Printf("Sending ChatGPT response to chat %d", mg.ChatID)
+
+		var text string
+
+		if mg.ChatGPTError != nil {
+			text = fmt.Sprintf("Error processing image: %s", mg.ChatGPTError)
+		} else {
+			text = FormatChatGPTResponse(mg.ChatGPTResponse)
+		}
+
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID:    mg.ChatID,
-			Text:      bot.EscapeMarkdown(mg.ChatGPTResponse),
-			ParseMode: models.ParseModeMarkdown,
+			ChatID: mg.ChatID,
+			Text:   text,
+			//ParseMode: models.ParseModeMarkdown,
 		})
 		if err != nil {
 			log.Printf("Error sending message: %s", err)

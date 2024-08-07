@@ -2,39 +2,74 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	openai "github.com/sashabaranov/go-openai"
 )
 
-const instructions = `You are a helpful assistant who can estimate calories in food. 
-This is your instruction:
-
-1. Food Item Analysis:
-
-When you input a food item or meal, it identifies standard quantities for each component (e.g., 100 grams of tortilla chips, 100 grams of cheddar cheese).
-It then presents the estimated nutritional values in a clear list format, covering calories and macronutrients (carbohydrates, proteins, fats).
-
-Total Nutritional Calculation:
-
-For meals with multiple components, it calculates the total nutritional values for the entire meal, not just individual items.
-
-2. Image Analysis:
-
-If you send a photo of your food, it estimates the serving size and provides nutritional content based on typical ingredients.
-It includes calories and macronutrients.
-
-3. Guidance for Precision:
-
-If the provided information is general, it includes a note encouraging you to provide detailed descriptions for more precise results.
-
-4. Simple and Direct Responses:
-
-It delivers straightforward and succinct summaries.
+const instructions = `You are a helpful assistant who can estimate calories and macronutrients in food based on description or photos.
+Answer in JSON with a following JSON schema:
+----
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "foods": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "description": { "type": "string" },
+          "portion": { "type": "string" },
+          "calories": { "type": "number" },
+          "protein": { "type": "number" },
+          "fat": { "type": "number" },
+          "carbs": { "type": "number" }
+        },
+        "required": ["description", "portion", "calories", "protein", "fat", "carbs"]
+      }
+    },
+    "total": {
+      "type": "object",
+      "properties": {
+        "description": { "type": "string" },
+        "portion": { "type": "string" },
+        "calories": { "type": "number" },
+        "protein": { "type": "number" },
+        "fat": { "type": "number" },
+        "carbs": { "type": "number" }
+      },
+      "required": ["description", "portion", "calories", "protein", "fat", "carbs"]
+    }
+  },
+  "required": ["foods", "total"]
+}
+----
+Answer only with JSON. Do not include any other information in your response.
 `
 
-func AskOpenAI(text string, pictures []string) (string, error) {
+type OpenAIResponse struct {
+	Foods []struct {
+		Description string  `json:"description"`
+		Portion     string  `json:"portion"`
+		Calories    float64 `json:"calories"`
+		Protein     float64 `json:"protein"`
+		Fat         float64 `json:"fat"`
+		Carbs       float64 `json:"carbs"`
+	} `json:"foods"`
+	Total struct {
+		Description string  `json:"description"`
+		Portion     string  `json:"portion"`
+		Calories    float64 `json:"calories"`
+		Protein     float64 `json:"protein"`
+		Fat         float64 `json:"fat"`
+		Carbs       float64 `json:"carbs"`
+	} `json:"total"`
+}
+
+func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 	token := os.Getenv("OPENAI_API_KEY")
 
 	images := make([]openai.ChatMessagePart, 0)
@@ -71,8 +106,27 @@ func AskOpenAI(text string, pictures []string) (string, error) {
 	)
 
 	if err != nil {
-		return "", fmt.Errorf("ChatCompletion error: %w", err)
+		return nil, fmt.Errorf("ChatCompletion error: %w", err)
 	}
 
-	return resp.Choices[0].Message.Content, nil
+	response := resp.Choices[0].Message.Content
+
+	// remove ```json from the beginning if it exists
+	if response[:7] == "```json" {
+		response = response[7:]
+	}
+
+	// remove ``` from the end if it exists
+	if response[len(response)-3:] == "```" {
+		response = response[:len(response)-3]
+	}
+
+	// parse json
+	var openAIResponse OpenAIResponse
+
+	if err := json.Unmarshal([]byte(response), &openAIResponse); err != nil {
+		return nil, fmt.Errorf("unmarshal JSON error: %w", err)
+	}
+
+	return &openAIResponse, nil
 }

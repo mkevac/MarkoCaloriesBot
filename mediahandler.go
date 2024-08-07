@@ -19,7 +19,8 @@ type MediaGroup struct {
 	Caption         string
 	URLs            []string
 	LastUpdate      time.Time
-	ChatGPTResponse string
+	ChatGPTResponse *OpenAIResponse
+	ChatGPTError    error
 }
 
 type MediaHandler struct {
@@ -46,7 +47,7 @@ func (m *MediaHandler) mediaDownloader() {
 		log.Printf("asking ChatGPT about group '%s' with %d images", mg.GroupID, len(mg.URLs))
 		response, err := AskOpenAI(mg.Caption, mg.URLs)
 		if err != nil {
-			mg.ChatGPTResponse = err.Error()
+			mg.ChatGPTError = err
 		} else {
 			mg.ChatGPTResponse = response
 		}
