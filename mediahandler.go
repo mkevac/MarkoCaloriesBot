@@ -7,20 +7,22 @@ import (
 )
 
 type MediaItem struct {
-	GroupID string
-	ChatID  int64
-	Caption string
-	URL     string
+	GroupID          string
+	ChatID           int64
+	Caption          string
+	URL              string
+	ReplyToMessageID int
 }
 
 type MediaGroup struct {
-	GroupID         string
-	ChatID          int64
-	Caption         string
-	URLs            []string
-	LastUpdate      time.Time
-	ChatGPTResponse *OpenAIResponse
-	ChatGPTError    error
+	GroupID          string
+	ChatID           int64
+	Caption          string
+	URLs             []string
+	LastUpdate       time.Time
+	ChatGPTResponse  *OpenAIResponse
+	ChatGPTError     error
+	ReplyToMessageID int
 }
 
 type MediaHandler struct {
@@ -69,24 +71,30 @@ func (m *MediaHandler) mediaConsolidator() {
 			if message.GroupID == "" {
 				fmt.Println("consolidating single image")
 				m.internalChannel <- &MediaGroup{
-					GroupID:    "",
-					ChatID:     message.ChatID,
-					Caption:    message.Caption,
-					URLs:       []string{message.URL},
-					LastUpdate: time.Now(),
+					GroupID:          "",
+					ChatID:           message.ChatID,
+					Caption:          message.Caption,
+					URLs:             []string{message.URL},
+					LastUpdate:       time.Now(),
+					ReplyToMessageID: message.ReplyToMessageID,
 				}
 				continue
 			} else {
 				if group, ok := incoming[message.GroupID]; ok {
 					group.URLs = append(group.URLs, message.URL)
 					group.LastUpdate = time.Now()
+					// Use the first message's ID for reply
+					if group.ReplyToMessageID == 0 {
+						group.ReplyToMessageID = message.ReplyToMessageID
+					}
 				} else {
 					incoming[message.GroupID] = &MediaGroup{
-						GroupID:    message.GroupID,
-						ChatID:     message.ChatID,
-						Caption:    message.Caption,
-						URLs:       []string{message.URL},
-						LastUpdate: time.Now(),
+						GroupID:          message.GroupID,
+						ChatID:           message.ChatID,
+						Caption:          message.Caption,
+						URLs:             []string{message.URL},
+						LastUpdate:       time.Now(),
+						ReplyToMessageID: message.ReplyToMessageID,
 					}
 				}
 			}

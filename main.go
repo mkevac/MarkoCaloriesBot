@@ -101,7 +101,9 @@ func answerMachine(ctx context.Context, b *bot.Bot) {
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: mg.ChatID,
 			Text:   text,
-			//ParseMode: models.ParseModeMarkdown,
+			ReplyParameters: &models.ReplyParameters{
+				MessageID: mg.ReplyToMessageID,
+			},
 		})
 		if err != nil {
 			log.Printf("Error sending message: %s", err)
@@ -168,10 +170,11 @@ func messageToMediaItem(ctx context.Context, b *bot.Bot, message *models.Message
 	link := b.FileDownloadLink(file)
 
 	return &MediaItem{
-		GroupID: message.MediaGroupID,
-		ChatID:  message.Chat.ID,
-		Caption: message.Caption,
-		URL:     link,
+		GroupID:          message.MediaGroupID,
+		ChatID:           message.Chat.ID,
+		Caption:          message.Caption,
+		URL:              link,
+		ReplyToMessageID: message.ID,
 	}, nil
 }
 
