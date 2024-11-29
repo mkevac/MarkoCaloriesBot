@@ -31,6 +31,7 @@ func main() {
 
 	opts := []bot.Option{
 		bot.WithDefaultHandler(handler),
+		bot.WithCheckInitTimeout(time.Minute),
 		//bot.WithServerURL("http://telegram-bot-api:8081"),
 	}
 
