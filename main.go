@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/joho/godotenv"
 	"github.com/mkevac/markocaloriesbot/stats"
 )
 
@@ -21,11 +22,20 @@ var (
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Error loading .env file: %v", err)
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	adminUsername = os.Getenv("ADMIN_USERNAME")
 	log.Printf("Admin username: %s", adminUsername)
+
+	botToken := os.Getenv("TELEGRAM_BOT_API_TOKEN")
+	if botToken == "" {
+		log.Fatal("TELEGRAM_BOT_API_TOKEN environment variable is not set")
+	}
 
 	mh = NewMediaHandler()
 
@@ -38,15 +48,25 @@ func main() {
 	var b *bot.Bot
 	var err error
 
-	for range time.Tick(time.Second * 5) {
-		b, err = bot.New(os.Getenv("TELEGRAM_BOT_API_TOKEN"), opts...)
-		if err != nil {
-			log.Printf("Error creating bot: %s", err)
-			time.Sleep(time.Second * 5)
-		} else {
-			break
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Printf("Context cancelled, exiting")
+			return
+		case <-ticker.C:
+			b, err = bot.New(botToken, opts...)
+			if err != nil {
+				log.Printf("Error creating bot: %s", err)
+			} else {
+				goto botCreated
+			}
 		}
 	}
+
+botCreated:
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/stats", bot.MatchTypeExact, statsHandler)
 
