@@ -9,10 +9,14 @@ The command reports:
 
 A submitted photo is one request; an album is also one request. Repeated delivery
 of the same Telegram message does not increase the count. Failed analyses count
-as submitted requests. Commands and non-photo messages do not count. Users are
+as submitted requests. Each clarification that triggers re-analysis is another
+request. Commands and unrelated text do not count. Users are
 identified by their Telegram user ID, with their latest username used for display.
 
-SQLite stores IDs, usernames, and request timestamps, not meal content. Tracking
+The stats tables store IDs, usernames, and request timestamps. Separate meal
+history tables in the same database store Telegram photo file IDs, original
+captions, clarification text, and message links so follow-up replies survive
+restarts. Image bytes and temporary download URLs are not stored. Tracking
 starts when this version first runs; older in-memory counts cannot be recovered.
 Stats survive restarts.
 
