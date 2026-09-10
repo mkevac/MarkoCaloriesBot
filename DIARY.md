@@ -1,8 +1,14 @@
 # Daily calorie diary
 
-- `/calories 2000` sets your recurring daily target. `/calories` shows progress;
-  `/calories off` removes the target without deleting saved meals.
-- `/timezone Asia/Dubai` sets the timezone used for new saves. The default is UTC.
+- `/calories` opens preset buttons (1,500, 1,800, 2,000, 2,500 kcal), Custom,
+  and Clear target. Custom prompts for a number without requiring a command.
+- `/timezone` opens Dubai, Belgrade, London, UTC, and Other city buttons.
+  Other city searches the bundled IANA timezone city names, then shows matching
+  choices. Try a nearby major city if yours is not listed. The default is UTC.
+- `/cancel` exits a custom entry. Menus and prompts expire after 15 minutes or a
+  bot restart; open the command again to continue. Saved settings persist.
+- Direct commands such as `/calories 2000`, `/calories off`, and
+  `/timezone Asia/Dubai` also work. Clearing the target keeps saved meals.
 - `/today` shows the day's logged calorie total, number of meals, and, when a
   target exists, calories remaining or calories over target.
 

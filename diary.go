@@ -26,7 +26,7 @@ func formatDaily(d history.Daily) string {
 			text += fmt.Sprintf("\nOver target: %.0f kcal", -remaining)
 		}
 	} else {
-		text += "\nSet a daily target with /calories 2000."
+		text += "\nChoose a daily target with /calories."
 	}
 	return text
 }
@@ -83,7 +83,7 @@ func diaryText(store *history.Store, message *models.Message, now time.Time) (st
 			}
 		}
 		summary, err := store.Today(message.From.ID, now)
-		return formatDaily(summary) + "\n\nUse /timezone Asia/Dubai to set your local day.", true, err
+		return formatDaily(summary) + "\n\nChoose your local day with /timezone.", true, err
 	case "/timezone":
 		if len(fields) > 2 {
 			return "Use /timezone followed by a timezone, for example /timezone Asia/Dubai.", true, nil
@@ -110,6 +110,9 @@ func diaryText(store *history.Store, message *models.Message, now time.Time) (st
 }
 
 func handleDiary(ctx context.Context, b *bot.Bot, message *models.Message) bool {
+	if preferences.message(ctx, b, mealHistory, message) {
+		return true
+	}
 	// Use Telegram's send time so delayed processing across midnight keeps the
 	// day on which the user actually sent "save".
 	at := time.Now()

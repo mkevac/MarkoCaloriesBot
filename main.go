@@ -95,11 +95,12 @@ botCreated:
 	})
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/stats", bot.MatchTypeExact, statsHandler)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, "prefs:", bot.MatchTypePrefix, preferenceCallback)
 
 	if _, err := b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: []models.BotCommand{
-		{Command: "calories", Description: "Set daily calorie target, e.g. /calories 2000"},
+		{Command: "calories", Description: "Choose your daily calorie target"},
 		{Command: "today", Description: "Today's logged calories and remaining target"},
-		{Command: "timezone", Description: "Set local day, e.g. /timezone Asia/Dubai"},
+		{Command: "timezone", Description: "Choose your city and timezone"},
 		{Command: "stats", Description: "Usage stats (admin only)"},
 	}}); err != nil {
 		log.Printf("Error setting commands: %v", err)
