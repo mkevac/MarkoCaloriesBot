@@ -101,7 +101,7 @@ func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 	}
 
 	resp, err := client.Responses.New(context.Background(), responses.ResponseNewParams{
-		Model: responses.ChatModelGPT5Mini,
+		Model: "gpt-5.6-luna",
 		Instructions: openai.String(instructions),
 		Input: input,
 		Text: responses.ResponseTextConfigParam{
