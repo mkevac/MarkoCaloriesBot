@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -95,6 +96,15 @@ botCreated:
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/stats", bot.MatchTypeExact, statsHandler)
 
+	if _, err := b.SetMyCommands(ctx, &bot.SetMyCommandsParams{Commands: []models.BotCommand{
+		{Command: "calories", Description: "Set daily calorie target, e.g. /calories 2000"},
+		{Command: "today", Description: "Today's logged calories and remaining target"},
+		{Command: "timezone", Description: "Set local day, e.g. /timezone Asia/Dubai"},
+		{Command: "stats", Description: "Usage stats (admin only)"},
+	}}); err != nil {
+		log.Printf("Error setting commands: %v", err)
+	}
+
 	go answerMachine(ctx, b)
 
 	b.Start(ctx)
@@ -137,11 +147,29 @@ func answerMachine(ctx context.Context, b *bot.Bot) {
 		log.Printf("Sending ChatGPT response to chat %d", mg.ChatID)
 
 		var text string
+		estimateStored := false
 
 		if mg.ChatGPTError != nil {
 			text = "I couldn’t analyze these photos. Please try again by replying with your clarification, or resend the photos."
 		} else {
 			text = FormatChatGPTResponse(mg.ChatGPTResponse)
+			raw, err := json.Marshal(mg.ChatGPTResponse)
+			if err == nil {
+				err = mealHistory.PutEstimate(mg.ChatID, mg.UserID, mg.MealKey, mg.ReplyToMessageID, mg.ChatGPTResponse.Total.Calories, string(raw))
+			}
+			if err != nil {
+				log.Printf("Error storing calorie estimate: %v", err)
+				text += "\nI couldn’t store this estimate for saving. Please try again."
+			} else {
+				estimateStored = true
+				text += "\nReply save to this answer or your photo to log this meal."
+			}
+			summary, err := mealHistory.Today(mg.UserID, time.Now())
+			if err != nil {
+				log.Printf("Error reading daily total: %v", err)
+			} else if summary.Target > 0 {
+				text += "\n\n" + formatDaily(summary)
+			}
 		}
 
 		sent, err := b.SendMessage(ctx, &bot.SendMessageParams{
@@ -153,8 +181,15 @@ func answerMachine(ctx context.Context, b *bot.Bot) {
 		})
 		if err != nil {
 			log.Printf("Error sending message: %s", err)
-		} else if err := mealHistory.LinkReply(mg.ChatID, sent.ID, mg.MealKey); err != nil {
-			log.Printf("Error linking meal reply: %v", err)
+		} else {
+			if estimateStored {
+				err = mealHistory.LinkEstimateReply(mg.ChatID, sent.ID, mg.MealKey, mg.ReplyToMessageID)
+			} else {
+				err = mealHistory.LinkReply(mg.ChatID, sent.ID, mg.MealKey)
+			}
+			if err != nil {
+				log.Printf("Error linking meal reply: %v", err)
+			}
 		}
 	}
 }
@@ -260,6 +295,9 @@ func savePhoto(store *history.Store, message *models.Message) (string, error) {
 func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	message := update.Message
 	if message == nil || message.From == nil {
+		return
+	}
+	if handleDiary(ctx, b, message) {
 		return
 	}
 	item, err := prepareMediaItem(mealHistory, message)

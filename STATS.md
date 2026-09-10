@@ -16,7 +16,8 @@ identified by their Telegram user ID, with their latest username used for displa
 The stats tables store IDs, usernames, and request timestamps. Separate meal
 history tables in the same database store Telegram photo file IDs, original
 captions, clarification text, and message links so follow-up replies survive
-restarts. Image bytes and temporary download URLs are not stored. Tracking
+restarts. The diary also stores calorie targets, timezones, structured estimates, and saved
+meal entries. Image bytes and temporary download URLs are not stored. Tracking
 starts when this version first runs; older in-memory counts cannot be recovered.
 Stats survive restarts.
 

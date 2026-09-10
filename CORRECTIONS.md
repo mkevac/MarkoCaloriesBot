@@ -20,3 +20,6 @@ single photo can recover it from Telegram's embedded reply data. Unknown old
 albums must be resent in full. The bot explains when it cannot find the context.
 
 Each clarification is counted as a request in `/stats`.
+
+Reply `save` to a revised estimate to update that meal in your calorie diary.
+Corrections do not change already saved calories until you save the new estimate.
