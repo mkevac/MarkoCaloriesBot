@@ -19,6 +19,7 @@ import (
 var (
 	adminUsername string
 	mh            *MediaHandler
+	usageStats    *stats.Store
 )
 
 func main() {
@@ -37,6 +38,17 @@ func main() {
 		log.Fatal("TELEGRAM_BOT_API_TOKEN environment variable is not set")
 	}
 
+	dbPath := os.Getenv("STATS_DB_PATH")
+	if dbPath == "" {
+		dbPath = "./data/stats.db"
+	}
+	var err error
+	usageStats, err = stats.Open(dbPath)
+	if err != nil {
+		log.Fatalf("Error opening stats database: %v", err)
+	}
+	defer usageStats.Close()
+
 	mh = NewMediaHandler()
 
 	opts := []bot.Option{
@@ -46,7 +58,6 @@ func main() {
 	}
 
 	var b *bot.Bot
-	var err error
 
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
@@ -133,38 +144,51 @@ func answerMachine(ctx context.Context, b *bot.Bot) {
 }
 
 func statsHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if update.Message.From.Username != adminUsername {
-		b.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: update.Message.Chat.ID,
-			Text:   "You are not authorized to use this command",
-		})
+	if update.Message == nil || update.Message.From == nil {
 		return
 	}
-
-	stats := stats.GetStats()
-
-	totalRequests := 0
-	for _, count := range stats.Requests {
-		totalRequests += count
+	if update.Message.From.Username == "" || adminUsername == "" || !strings.EqualFold(update.Message.From.Username, strings.TrimPrefix(adminUsername, "@")) {
+		b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: "You are not authorized to use this command"})
+		return
 	}
-
-	// prepare stats message in Markdown format
-	var statsMessage strings.Builder
-	statsMessage.WriteString("*Stats*\n")
-	statsMessage.WriteString("```\n")
-	statsMessage.WriteString(fmt.Sprintf("Total requests: %d\n", totalRequests))
-	for username, count := range stats.Requests {
-		statsMessage.WriteString(fmt.Sprintf("%s: %d\n", username, count))
+	now := time.Now().UTC()
+	snapshot, err := usageStats.Get(now)
+	text := "Unable to load usage stats. Please try again."
+	if err != nil {
+		log.Printf("Error loading stats: %v", err)
+	} else {
+		text = formatStats(snapshot, now)
 	}
-	statsMessage.WriteString(fmt.Sprintf("Download errors: %d\n", stats.DownloadErrors))
-	statsMessage.WriteString(fmt.Sprintf("Unrecognized commands: %d\n", stats.UnrecognizedCommands))
-	statsMessage.WriteString("```")
+	if _, err := b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.Message.Chat.ID, Text: text}); err != nil {
+		log.Printf("Error sending stats: %v", err)
+	}
+}
 
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      statsMessage.String(),
-		ParseMode: models.ParseModeMarkdown,
-	})
+func formatStats(s stats.Stats, now time.Time) string {
+	days := now.Sub(s.Since).Hours() / 24
+	// Count the first partial day as one day so startup doesn't inflate the rate.
+	if days < 1 {
+		days = 1
+	}
+	average := 0.0
+	if s.All.Users > 0 {
+		average = float64(s.All.Requests) / float64(s.All.Users)
+	}
+	text := fmt.Sprintf("Usage stats\nTracking since: %s UTC\n\nAll time: %d users, %d requests\nLast 24 hours: %d users, %d requests\nLast 7 days: %d users, %d requests\nLast 30 days: %d users, %d requests\n\nAverage requests/day since tracking began: %.1f\nAverage requests/user: %.1f\n\nA request is a submitted photo or album (one per album), including failed analyses. Commands are excluded.",
+		s.Since.Format("2006-01-02 15:04"), s.All.Users, s.All.Requests,
+		s.Day.Users, s.Day.Requests, s.Week.Users, s.Week.Requests, s.Month.Users, s.Month.Requests,
+		float64(s.All.Requests)/days, average)
+	if len(s.Top) > 0 {
+		text += "\n\nTop users (all time):"
+		for _, user := range s.Top {
+			name := fmt.Sprintf("User %d", user.ID)
+			if user.Username != "" {
+				name = "@" + user.Username
+			}
+			text += fmt.Sprintf("\n%s: %d requests", name, user.Requests)
+		}
+	}
+	return text
 }
 
 func messageToMediaItem(ctx context.Context, b *bot.Bot, message *models.Message) (*MediaItem, error) {
@@ -200,7 +224,7 @@ func messageToMediaItem(ctx context.Context, b *bot.Bot, message *models.Message
 }
 
 func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if update.Message == nil {
+	if update.Message == nil || update.Message.From == nil {
 		log.Printf("Received update without message")
 		return
 	}
@@ -211,6 +235,12 @@ func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	data, _ := json.MarshalIndent(update.Message, "", "  ")
 	log.Printf("Message: %s", data)
 
+	if len(update.Message.Photo) > 0 {
+		if err := usageStats.Record(update.Message.Chat.ID, update.Message.From.ID, update.Message.ID, update.Message.MediaGroupID, update.Message.From.Username, time.Now().UTC()); err != nil {
+			log.Printf("Error recording usage: %v", err)
+		}
+	}
+
 	mi, err := messageToMediaItem(ctx, b, update.Message)
 	if err != nil {
 		log.Printf("Error converting message to media item: %s", err)
@@ -220,5 +250,4 @@ func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 
 	mh.InputChannel <- mi
 
-	stats.AddRequest(update.Message.From.Username)
 }

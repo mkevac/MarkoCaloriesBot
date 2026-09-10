@@ -5,3 +5,9 @@ services:
       TELEGRAM_BOT_API_TOKEN: "${TELEGRAM_BOT_API_TOKEN}"
       OPENAI_API_KEY: "${OPENAI_API_KEY}"
       ADMIN_USERNAME: "${ADMIN_USERNAME}"
+      STATS_DB_PATH: "/app/data/stats.db"
+    volumes:
+      - stats-data:/app/data
+
+volumes:
+  stats-data:
