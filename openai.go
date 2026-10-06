@@ -85,7 +85,7 @@ func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 	// Add image parts
 	for _, picture := range pictures {
 		imageParam := responses.ResponseInputImageParam{
-			Detail: responses.ResponseInputImageDetailHigh,
+			Detail:   responses.ResponseInputImageDetailHigh,
 			ImageURL: openai.String(picture),
 		}
 		content = append(content, responses.ResponseInputContentUnionParam{
@@ -101,9 +101,9 @@ func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 	}
 
 	resp, err := client.Responses.New(context.Background(), responses.ResponseNewParams{
-		Model: "gpt-5.6-luna",
+		Model:        "gpt-6-luna",
 		Instructions: openai.String(instructions),
-		Input: input,
+		Input:        input,
 		Text: responses.ResponseTextConfigParam{
 			Format: responses.ResponseFormatTextConfigUnionParam{
 				OfJSONSchema: &responses.ResponseFormatTextJSONSchemaConfigParam{
@@ -123,7 +123,7 @@ func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 										"fat":         map[string]interface{}{"type": "number"},
 										"carbs":       map[string]interface{}{"type": "number"},
 									},
-									"required": []string{"description", "portion", "calories", "protein", "fat", "carbs"},
+									"required":             []string{"description", "portion", "calories", "protein", "fat", "carbs"},
 									"additionalProperties": false,
 								},
 							},
@@ -137,11 +137,11 @@ func AskOpenAI(text string, pictures []string) (*OpenAIResponse, error) {
 									"fat":         map[string]interface{}{"type": "number"},
 									"carbs":       map[string]interface{}{"type": "number"},
 								},
-								"required": []string{"description", "portion", "calories", "protein", "fat", "carbs"},
+								"required":             []string{"description", "portion", "calories", "protein", "fat", "carbs"},
 								"additionalProperties": false,
 							},
 						},
-						"required": []string{"foods", "total"},
+						"required":             []string{"foods", "total"},
 						"additionalProperties": false,
 					},
 				},

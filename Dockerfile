@@ -15,6 +15,12 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /app/markocalori
 # Stage 2: Create the final image
 FROM alpine:latest
 
+ARG VERSION=dev
+ARG REVISION=unknown
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.revision=$REVISION \
+      org.opencontainers.image.source="https://github.com/mkevac/MarkoCaloriesBot"
+
 # Set the working directory inside the container.
 WORKDIR /app
 

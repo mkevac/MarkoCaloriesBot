@@ -1,11 +1,16 @@
+.PHONY: all push run stop build test bump version
+
 all:
-	docker buildx build -t mkevac/markocaloriesbot --load .
+	just docker
 
 push:
-	docker buildx build --platform linux/amd64,linux/arm64 -t mkevac/markocaloriesbot --push .
+	just push
 
 run:
-	docker-compose up -d
+	just run
 
 stop:
-	docker-compose down
+	just stop
+
+build test bump version:
+	just $@
